@@ -134,7 +134,7 @@ select.filter option{background:var(--bg3)}
 .gantt-fill{height:20px;border-radius:3px;display:flex;align-items:center;padding-left:6px;font-size:10px;font-family:var(--mono);font-weight:600;color:#000;white-space:nowrap}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .modal-overlay.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;width:500px;max-width:95vw;max-height:85vh;overflow-y:auto}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;width:520px;max-width:95vw;max-height:85vh;overflow-y:auto}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .modal-title{font-size:16px;font-weight:600}
 .modal-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;padding:0}
@@ -159,6 +159,50 @@ select.filter option{background:var(--bg3)}
 .api-dot.err{background:var(--danger)}
 input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--bg4);outline:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer}
+
+/* ── PHASE TIMELINE ── */
+.phase-timeline{display:flex;align-items:center;gap:0;overflow-x:auto;padding:4px 0;scrollbar-width:none}
+.phase-timeline::-webkit-scrollbar{display:none}
+.phase-step{display:flex;align-items:center;flex-shrink:0}
+.phase-node{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:0 2px}
+.phase-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border2);background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);color:var(--text3);transition:all .2s}
+.phase-circle.done{background:var(--accent);border-color:var(--accent);color:#000}
+.phase-circle.active{background:var(--accent2);border-color:var(--accent2);color:#fff;box-shadow:0 0 0 3px rgba(0,153,255,.25)}
+.phase-label{font-size:9px;font-family:var(--mono);color:var(--text3);text-align:center;white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
+.phase-label.done{color:var(--accent)}
+.phase-label.active{color:var(--accent2);font-weight:600}
+.phase-connector{width:24px;height:2px;background:var(--border2);flex-shrink:0;margin-bottom:16px}
+.phase-connector.done{background:var(--accent)}
+
+/* Phase timeline card in project list */
+.phase-bar-wrap{margin-top:6px}
+.phase-bar-mini{display:flex;gap:2px;height:6px}
+.phase-seg{flex:1;border-radius:2px;background:var(--bg4);transition:background .3s}
+.phase-seg.done{background:var(--accent)}
+.phase-seg.active{background:var(--accent2)}
+
+/* Phase panel */
+.phase-project-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+.phase-project-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.phase-project-name{font-size:14px;font-weight:600}
+.phase-project-meta{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.phase-full-timeline{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding:8px 0 16px;scrollbar-width:thin}
+.phase-full-step{display:flex;align-items:flex-start;flex-shrink:0}
+.phase-full-node{display:flex;flex-direction:column;align-items:center;gap:6px;width:90px;cursor:pointer}
+.phase-full-node:hover .phase-big-circle{border-color:var(--accent)}
+.phase-big-circle{width:40px;height:40px;border-radius:50%;border:2px solid var(--border2);background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text3);transition:all .2s;position:relative}
+.phase-big-circle.done{background:var(--accent);border-color:var(--accent);color:#000}
+.phase-big-circle.done::after{content:'✓';position:absolute;font-size:14px}
+.phase-big-circle.done span{display:none}
+.phase-big-circle.active{background:var(--accent2);border-color:var(--accent2);color:#fff;box-shadow:0 0 0 4px rgba(0,153,255,.2)}
+.phase-full-label{font-size:10px;font-family:var(--mono);color:var(--text3);text-align:center;line-height:1.4}
+.phase-full-label.done{color:var(--accent)}
+.phase-full-label.active{color:var(--accent2);font-weight:600}
+.phase-full-connector{width:20px;height:2px;background:var(--border2);flex-shrink:0;margin-top:19px}
+.phase-full-connector.done{background:var(--accent)}
+.phase-note-btn{font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:var(--mono);padding:0;margin-top:2px}
+.phase-note-btn:hover{color:var(--accent)}
+
 @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}.kanban{grid-template-columns:repeat(2,1fr)}.team-grid{grid-template-columns:repeat(2,1fr)}.doc-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -168,13 +212,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
   <div class="logo">
     <div class="logo-mark">
       <div class="logo-icon">AT</div>
-      <div><div class="logo-text">AutoTeam PM</div><div class="logo-sub">v2.0 // Server Edition</div></div>
+      <div><div class="logo-text">AutoTeam PM</div><div class="logo-sub">v2.1 // Phase Tracking</div></div>
     </div>
   </div>
   <div class="nav">
     <div class="nav-section">Main</div>
     <div class="nav-item active" onclick="showPanel('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
     <div class="nav-item" onclick="showPanel('projects')"><span class="nav-icon">🏗️</span> Dự án <span class="nav-badge" id="proj-badge">0</span></div>
+    <div class="nav-item" onclick="showPanel('phases')"><span class="nav-icon">🔄</span> Phase Timeline</div>
     <div class="nav-item" onclick="showPanel('tasks')"><span class="nav-icon">✅</span> Công việc <span class="nav-badge" id="task-badge">0</span></div>
     <div class="nav-section">Team</div>
     <div class="nav-item" onclick="showPanel('team')"><span class="nav-icon">👥</span> Thành viên</div>
@@ -184,7 +229,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
     <div class="nav-item" onclick="showPanel('gantt')"><span class="nav-icon">📅</span> Gantt Chart</div>
   </div>
   <div class="sidebar-bottom">
-    <div class="api-status"><div class="api-dot" id="api-dot"></div><span id="api-status-text">Đang kết nối...</span></div>
+    <div class="api-status"><div class="api-dot" id="api-dot"></div><span id="api-status-text">Connecting...</span></div>
     <div class="user-card" style="margin-top:8px">
       <div class="avatar">TL</div>
       <div class="user-info"><div class="name">Team Leader</div><div class="role">AUTOMATION LEAD</div></div>
@@ -198,6 +243,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
     <button class="btn btn-primary btn-sm" id="add-btn" onclick="openAddModal()">+ Thêm mới</button>
   </div>
   <div class="content">
+
     <!-- DASHBOARD -->
     <div class="panel active" id="panel-dashboard">
       <div class="stats-grid">
@@ -207,11 +253,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
         <div class="stat-card purple"><div class="stat-label">Thành viên</div><div class="stat-value" id="s-members">—</div><div class="stat-sub">Trong team</div></div>
       </div>
       <div class="grid2">
-        <div class="card"><div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Dự án đang triển khai</div><div id="dash-proj-list"><div class="empty-state"><div class="e-icon">⏳</div><div class="e-text">Đang tải...</div></div></div></div>
-        <div class="card"><div class="card-title"><span class="dot" style="background:var(--accent4)"></span>Workload Team</div><div id="dash-workload"><div class="empty-state"><div class="e-icon">⏳</div><div class="e-text">Đang tải...</div></div></div></div>
+        <div class="card"><div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Dự án & Phase hiện tại</div><div id="dash-proj-list"></div></div>
+        <div class="card"><div class="card-title"><span class="dot" style="background:var(--accent4)"></span>Workload Team</div><div id="dash-workload"></div></div>
       </div>
       <div class="card"><div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Deadline hôm nay</div><div id="dash-today"></div></div>
     </div>
+
     <!-- PROJECTS -->
     <div class="panel" id="panel-projects">
       <div class="toolbar">
@@ -219,12 +266,32 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
         <select class="filter" id="pf-type" onchange="filterProjects()">
           <option value="">Tất cả loại</option><option>Oil & Gas</option><option>Power Plant</option><option>Mining</option><option>Khác</option>
         </select>
+        <select class="filter" id="pf-phase" onchange="filterProjects()">
+          <option value="">Tất cả phase</option>
+        </select>
         <select class="filter" id="pf-status" onchange="filterProjects()">
           <option value="">Tất cả trạng thái</option><option>Đang triển khai</option><option>Chờ bắt đầu</option><option>Hoàn thành</option><option>Tạm dừng</option>
         </select>
       </div>
-      <div class="card" style="padding:0;overflow:hidden"><table class="proj-table"><thead><tr><th>Tên dự án</th><th>Loại</th><th>Khách hàng</th><th>Leader</th><th>Tiến độ</th><th>Trạng thái</th><th>Deadline</th><th></th></tr></thead><tbody id="proj-tbody"></tbody></table></div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="proj-table">
+          <thead><tr><th>Tên dự án</th><th>Loại</th><th>Khách hàng</th><th>Phase hiện tại</th><th>Tiến độ</th><th>Trạng thái</th><th>Deadline</th><th></th></tr></thead>
+          <tbody id="proj-tbody"></tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- PHASE TIMELINE PANEL -->
+    <div class="panel" id="panel-phases">
+      <div class="toolbar">
+        <input class="search-box" type="text" placeholder="🔍  Tìm dự án..." id="phase-search" oninput="renderPhases()">
+        <select class="filter" id="phase-filter-type" onchange="renderPhases()">
+          <option value="">Tất cả loại</option><option>Oil & Gas</option><option>Power Plant</option><option>Mining</option><option>Khác</option>
+        </select>
+      </div>
+      <div id="phase-list"></div>
+    </div>
+
     <!-- TASKS -->
     <div class="panel" id="panel-tasks">
       <div class="toolbar">
@@ -234,8 +301,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
       </div>
       <div class="kanban" id="kanban-board"></div>
     </div>
+
     <!-- TEAM -->
     <div class="panel" id="panel-team"><div class="team-grid" id="team-grid"></div></div>
+
     <!-- DOCS -->
     <div class="panel" id="panel-docs">
       <div class="toolbar">
@@ -246,17 +315,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
       </div>
       <div class="doc-grid" id="doc-grid"></div>
     </div>
+
     <!-- KPI -->
     <div class="panel" id="panel-kpi">
       <div class="kpi-grid">
-        <div class="kpi-card" style="grid-column:1/-1"><div class="kpi-title">Tỷ lệ hoàn thành tasks theo tháng (ước tính)</div><div class="chart-bars" id="kpi-bars"></div><div class="chart-labels" id="kpi-labels"></div></div>
+        <div class="kpi-card" style="grid-column:1/-1"><div class="kpi-title">Tỷ lệ hoàn thành tasks theo tháng</div><div class="chart-bars" id="kpi-bars"></div><div class="chart-labels" id="kpi-labels"></div></div>
         <div class="kpi-card"><div class="kpi-title">Phân bổ dự án theo ngành</div><div id="kpi-industry"></div></div>
-        <div class="kpi-card"><div class="kpi-title">Hiệu suất thành viên</div><div id="kpi-perf"></div></div>
+        <div class="kpi-card"><div class="kpi-title">Phân bổ dự án theo Phase</div><div id="kpi-phase"></div></div>
       </div>
     </div>
+
     <!-- GANTT -->
     <div class="panel" id="panel-gantt">
-      <div class="gantt-wrap"><table class="gantt-table"><thead><tr><th style="width:200px">Dự án</th><th style="width:100px">Loại</th><th style="width:90px">Bắt đầu</th><th style="width:90px">Kết thúc</th><th>Tiến độ</th><th style="width:60px">%</th></tr></thead><tbody id="gantt-tbody"></tbody></table></div>
+      <div class="gantt-wrap">
+        <table class="gantt-table">
+          <thead><tr><th style="width:180px">Dự án</th><th style="width:90px">Loại</th><th style="width:130px">Phase hiện tại</th><th style="width:80px">Bắt đầu</th><th style="width:80px">Kết thúc</th><th>Tiến độ</th><th style="width:50px">%</th></tr></thead>
+          <tbody id="gantt-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -273,13 +349,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 <div class="toast" id="toast"></div>
 
 <script>
-const API = '';  // same origin
+const API = '';
+const PHASES = [
+  "Budget Approval","Bidding / Tender","EPC Contract",
+  "Engineering / Design","Procurement","Construction",
+  "Commissioning","Handover / Close-out"
+];
+const PHASE_ICONS = ["💰","📋","📝","⚙️","📦","🏗️","🔌","🏁"];
+const PHASE_COLORS = ["#f59e0b","#a855f7","#0099ff","#06b6d4","#f97316","#ef4444","#00d4aa","#22c55e"];
+
 let state = { projects:[], tasks:[], members:[], docs:[], stats:{} };
 let currentPanel = 'dashboard';
 let modalMode = '', editId = null;
 const MC = ['#00d4aa','#0099ff','#a855f7','#f59e0b','#22c55e','#ff6b35','#06b6d4','#f43f5e'];
 
-// ── API helpers ──
 async function api(method, path, body) {
   try {
     const opts = { method, headers:{'Content-Type':'application/json'} };
@@ -319,23 +402,29 @@ async function loadAll() {
   state = { projects, tasks, members, docs, stats };
   document.getElementById('proj-badge').textContent = projects.length;
   document.getElementById('task-badge').textContent = tasks.filter(t=>t.status!=='Done').length;
+  // populate phase filter
+  const pf = document.getElementById('pf-phase');
+  if(pf) {
+    const cur = pf.value;
+    pf.innerHTML = '<option value="">Tất cả phase</option>' + PHASES.map(p=>`<option${cur===p?' selected':''}>${p}</option>`).join('');
+  }
   renderPanel(currentPanel);
 }
 
-function refreshAll() { loadAll().then(()=>showToast('Đã làm mới dữ liệu')); }
+function refreshAll() { loadAll().then(()=>showToast('Đã làm mới')); }
 
-// ── NAV ──
 function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   const navItems = document.querySelectorAll('.nav-item');
-  const map = {dashboard:0,projects:1,tasks:2,team:3,docs:4,kpi:5,gantt:6};
+  const map = {dashboard:0,projects:1,phases:2,tasks:3,team:4,docs:5,kpi:6,gantt:7};
   if(navItems[map[name]]) navItems[map[name]].classList.add('active');
   currentPanel = name;
   const titles = {
     dashboard:'Dashboard <span>Tổng quan hệ thống</span>',
     projects:'Quản lý Dự án <span>Oil & Gas · Power Plant · Mining</span>',
+    phases:'Phase Timeline <span>Theo dõi giai đoạn dự án</span>',
     tasks:'Kanban Công việc <span>Phân bổ & theo dõi</span>',
     team:'Thành viên Team <span>Kỹ sư Tự động hóa</span>',
     docs:'Tài liệu Kỹ thuật <span>P&ID · PLC · SCADA · Wiring</span>',
@@ -343,15 +432,15 @@ function showPanel(name) {
     gantt:'Gantt Chart <span>Tiến độ tổng thể</span>'
   };
   document.getElementById('page-title').innerHTML = titles[name]||name;
-  const noAdd = ['kpi','gantt'];
-  const addBtn = document.getElementById('add-btn');
-  addBtn.style.display = noAdd.includes(name) ? 'none' : '';
+  const noAdd = ['kpi','gantt','phases'];
+  document.getElementById('add-btn').style.display = noAdd.includes(name)?'none':'';
   renderPanel(name);
 }
 
 function renderPanel(n) {
   if(n==='dashboard') renderDashboard();
   else if(n==='projects') renderProjects();
+  else if(n==='phases') renderPhases();
   else if(n==='tasks') renderTasks();
   else if(n==='team') renderTeam();
   else if(n==='docs') renderDocs();
@@ -359,7 +448,6 @@ function renderPanel(n) {
   else if(n==='gantt') renderGantt();
 }
 
-// ── HELPERS ──
 function initials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 function memberColor(id) { const i=state.members.findIndex(m=>m.id===id); return MC[Math.abs(i)%MC.length]||'#00d4aa'; }
 function today() { return new Date().toISOString().slice(0,10); }
@@ -375,33 +463,44 @@ function statusBadge(s) {
 function typeBadge(t) { return t==='Oil & Gas'?'badge-oil':t==='Power Plant'?'badge-power':t==='Mining'?'badge-mine':'badge-gray'; }
 function empty(icon, text) { return `<div class="empty-state"><div class="e-icon">${icon}</div><div class="e-text">${text}</div></div>`; }
 
+function phaseIndex(phase) { return PHASES.indexOf(phase); }
+
+function phaseMiniBar(currentPhase) {
+  const ci = phaseIndex(currentPhase);
+  return `<div class="phase-bar-mini">${PHASES.map((_,i)=>{
+    const cls = i<ci?'done':i===ci?'active':'';
+    return `<div class="phase-seg ${cls}" title="${PHASES[i]}"></div>`;
+  }).join('')}</div>`;
+}
+
 // ── DASHBOARD ──
 function renderDashboard() {
   const s = state.stats;
-  document.getElementById('s-projects').textContent = s.projects ?? '—';
-  document.getElementById('s-done').textContent = s.tasks_done ?? '—';
-  document.getElementById('s-open').textContent = s.tasks_open ?? '—';
-  document.getElementById('s-members').textContent = s.members ?? '—';
+  document.getElementById('s-projects').textContent = s.projects??'—';
+  document.getElementById('s-done').textContent = s.tasks_done??'—';
+  document.getElementById('s-open').textContent = s.tasks_open??'—';
+  document.getElementById('s-members').textContent = s.members??'—';
 
   const pl = document.getElementById('dash-proj-list');
   const projs = state.projects.slice(0,5);
-  pl.innerHTML = projs.length ? projs.map(p => {
+  pl.innerHTML = projs.length ? projs.map(p=>{
     const clr = p.type==='Oil & Gas'?'#f59e0b':p.type==='Power Plant'?'#0099ff':'#a855f7';
+    const ci = phaseIndex(p.current_phase);
     return `<div class="proj-item">
       <div class="proj-dot" style="background:${clr}"></div>
       <div class="proj-info">
         <div class="proj-name">${p.name}</div>
-        <div class="proj-meta">${p.client||'—'} · ${p.type}</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${p.progress}%;background:${clr}"></div></div>
+        <div class="proj-meta">${PHASE_ICONS[ci]||'🔄'} ${p.current_phase||'—'}</div>
+        ${phaseMiniBar(p.current_phase)}
       </div>
       <span class="badge ${statusBadge(p.status)}">${p.progress}%</span>
     </div>`;
   }).join('') : empty('🏗️','Chưa có dự án nào');
 
   const wl = document.getElementById('dash-workload');
-  wl.innerHTML = state.members.length ? state.members.map((m,i) => {
+  wl.innerHTML = state.members.length ? state.members.map((m,i)=>{
     const open = state.tasks.filter(t=>t.assignee_id===m.id&&t.status!=='Done').length;
-    const pct = Math.min(100, open*15);
+    const pct = Math.min(100,open*15);
     const clr = pct<40?'var(--success)':pct<75?'var(--warning)':'var(--danger)';
     return `<div class="member-row">
       <div class="mem-avatar" style="background:${MC[i%MC.length]}">${initials(m.name)}</div>
@@ -412,10 +511,10 @@ function renderDashboard() {
   }).join('') : empty('👥','Chưa có thành viên');
 
   const tod = document.getElementById('dash-today');
-  const todTasks = state.tasks.filter(t=>t.due_date===today()&&t.status!=='Done');
-  tod.innerHTML = todTasks.length ?
-    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">` +
-    todTasks.map(t=>`<div class="task-card">
+  const todT = state.tasks.filter(t=>t.due_date===today()&&t.status!=='Done');
+  tod.innerHTML = todT.length ?
+    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">`+
+    todT.map(t=>`<div class="task-card">
       <div class="t-title">${t.title}</div>
       <div class="t-meta"><span class="badge ${statusBadge(t.status)}">${t.status}</span>
         ${t.assignee_id?`<div class="mini-av" style="background:${memberColor(t.assignee_id)}">${initials(t.assignee_name||'?')}</div>`:''}
@@ -425,60 +524,164 @@ function renderDashboard() {
 
 // ── PROJECTS ──
 function renderProjects() {
-  const tbody = document.getElementById('proj-tbody');
   let list = state.projects;
   const s = (document.getElementById('proj-search')?.value||'').toLowerCase();
   const ft = document.getElementById('pf-type')?.value||'';
+  const fp = document.getElementById('pf-phase')?.value||'';
   const fs = document.getElementById('pf-status')?.value||'';
   if(s) list = list.filter(p=>p.name.toLowerCase().includes(s)||(p.client||'').toLowerCase().includes(s));
   if(ft) list = list.filter(p=>p.type===ft);
+  if(fp) list = list.filter(p=>p.current_phase===fp);
   if(fs) list = list.filter(p=>p.status===fs);
+  const tbody = document.getElementById('proj-tbody');
   if(!list.length) { tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3)">Không tìm thấy dự án nào</td></tr>`; return; }
+  const ci_fn = p => phaseIndex(p.current_phase);
   tbody.innerHTML = list.map(p=>{
     const tasks = state.tasks.filter(t=>t.project_id===p.id);
+    const ci = ci_fn(p);
+    const phaseClr = PHASE_COLORS[ci]||'var(--accent)';
     return `<tr>
       <td><div style="font-weight:500">${p.name}</div><div style="font-size:11px;color:var(--text2)">${p.description||''}</div></td>
       <td><span class="badge ${typeBadge(p.type)}">${p.type}</span></td>
       <td style="font-size:12px;color:var(--text2)">${p.client||'—'}</td>
-      <td>${p.leader_name?`<div style="display:flex;align-items:center;gap:6px"><div class="mini-av" style="background:${memberColor(p.leader_id)}">${initials(p.leader_name)}</div><span style="font-size:12px">${p.leader_name}</span></div>`:'<span style="color:var(--text3)">—</span>'}</td>
-      <td style="min-width:120px"><div class="progress-bar" style="height:6px"><div class="progress-fill" style="width:${p.progress}%;background:var(--accent2)"></div></div><div style="font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--mono)">${p.progress}% · ${tasks.length} tasks</div></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:14px">${PHASE_ICONS[ci]||'🔄'}</span>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:${phaseClr}">${p.current_phase||'—'}</div>
+            <div style="font-size:9px;color:var(--text3);font-family:var(--mono)">${ci+1}/${PHASES.length}</div>
+          </div>
+        </div>
+        ${phaseMiniBar(p.current_phase)}
+      </td>
+      <td style="min-width:110px">
+        <div class="progress-bar" style="height:6px"><div class="progress-fill" style="width:${p.progress}%;background:var(--accent2)"></div></div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--mono)">${p.progress}% · ${tasks.length} tasks</div>
+      </td>
       <td><span class="badge ${statusBadge(p.status)}">${p.status}</span></td>
       <td style="font-size:11px;font-family:var(--mono);color:var(--text2)">${p.deadline||'—'}</td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editProject('${p.id}')">✏</button> <button class="btn btn-danger btn-sm" onclick="deleteRecord('projects','${p.id}')">🗑</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="editProject('${p.id}')">✏</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRecord('projects','${p.id}')">🗑</button>
+      </td>
     </tr>`;
   }).join('');
 }
 function filterProjects() { renderProjects(); }
 
+// ── PHASE TIMELINE PANEL ──
+function renderPhases() {
+  const s = (document.getElementById('phase-search')?.value||'').toLowerCase();
+  const ft = document.getElementById('phase-filter-type')?.value||'';
+  let list = state.projects.filter(p=>{
+    if(s && !p.name.toLowerCase().includes(s)) return false;
+    if(ft && p.type!==ft) return false;
+    return true;
+  });
+  const el = document.getElementById('phase-list');
+  if(!list.length) { el.innerHTML=empty('🔄','Chưa có dự án nào'); return; }
+  el.innerHTML = list.map(p=>{
+    const ci = phaseIndex(p.current_phase);
+    const typeClr = p.type==='Oil & Gas'?'#f59e0b':p.type==='Power Plant'?'#0099ff':'#a855f7';
+    const notes = (() => { try{ return JSON.parse(p.phase_notes||'{}'); }catch(e){ return {}; } })();
+    return `<div class="phase-project-card">
+      <div class="phase-project-header">
+        <div>
+          <div class="phase-project-name">${p.name}</div>
+          <div class="phase-project-meta" style="margin-top:3px">
+            <span class="badge ${typeBadge(p.type)}" style="margin-right:6px">${p.type}</span>
+            ${p.client||''} · ${p.deadline?'Deadline: '+p.deadline:''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:20px">${PHASE_ICONS[ci]||'🔄'}</div>
+          <div style="font-size:10px;color:var(--text2);font-family:var(--mono)">${ci+1}/${PHASES.length}</div>
+        </div>
+      </div>
+      <div class="phase-full-timeline">
+        ${PHASES.map((ph,i)=>{
+          const isDone = i<ci;
+          const isActive = i===ci;
+          const cls = isDone?'done':isActive?'active':'';
+          const connCls = i<ci?'done':'';
+          const note = notes[ph]||'';
+          return `
+            <div class="phase-full-step">
+              <div class="phase-full-node" onclick="openPhaseModal('${p.id}','${ph.replace(/'/g,"\\'")}',${i})">
+                <div class="phase-big-circle ${cls}"><span>${i+1}</span></div>
+                <div class="phase-full-label ${cls}">${PHASE_ICONS[i]} ${ph}</div>
+                ${note?`<div style="font-size:9px;color:var(--text2);max-width:80px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${note}">📝 ${note}</div>`:''}
+                ${isActive?`<div style="font-size:9px;font-family:var(--mono);color:var(--accent2);margin-top:2px">◄ HIỆN TẠI</div>`:''}
+              </div>
+              ${i<PHASES.length-1?`<div class="phase-full-connector ${connCls}"></div>`:''}
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openPhaseModal(projId, phase, phaseIdx) {
+  const p = state.projects.find(x=>x.id===projId);
+  if(!p) return;
+  const notes = (() => { try{ return JSON.parse(p.phase_notes||'{}'); }catch(e){ return {}; } })();
+  const ci = phaseIndex(p.current_phase);
+  modalMode = 'phase';
+  editId = projId;
+  document.getElementById('modal-title').textContent = `${PHASE_ICONS[phaseIdx]} ${phase}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:16px;padding:12px;background:var(--bg4);border-radius:8px">
+      <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-bottom:4px">DỰ ÁN</div>
+      <div style="font-size:13px;font-weight:600">${p.name}</div>
+    </div>
+    <input type="hidden" id="f-phase-name" value="${phase}">
+    <div class="form-group">
+      <label class="form-label">Đặt làm Phase hiện tại</label>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px">
+        <input type="checkbox" id="f-set-active" ${phase===p.current_phase?'checked':''} style="width:16px;height:16px;accent-color:var(--accent2)">
+        <label for="f-set-active" style="font-size:13px;cursor:pointer">Đánh dấu "<strong>${phase}</strong>" là giai đoạn đang thực hiện</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ghi chú cho giai đoạn này</label>
+      <textarea class="form-textarea" id="f-phase-note" placeholder="VD: Đã ký hợp đồng ngày 15/01, đang chờ mobilization...">${notes[phase]||''}</textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+      ${PHASES.map((ph,i)=>{
+        const isDone = i<phaseIdx;
+        const isActive = ph===phase;
+        const isCur = ph===p.current_phase;
+        const bg = isCur?'var(--accent2)':isDone?'var(--accent)':'var(--bg4)';
+        const clr = (isCur||isDone)?'#000':'var(--text3)';
+        return `<div style="background:${bg};border-radius:6px;padding:6px 4px;text-align:center;font-size:9px;font-family:var(--mono);color:${clr};border:1px solid ${isActive?'var(--accent2)':'var(--border)'}">${PHASE_ICONS[i]}<br>${ph.split(' ')[0]}</div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
 // ── TASKS ──
 function renderTasks() {
   const tfp = document.getElementById('tf-proj');
   const tfa = document.getElementById('tf-assign');
-  if(tfp) {
-    const cv = tfp.value;
-    tfp.innerHTML = '<option value="">Tất cả dự án</option>'+state.projects.map(p=>`<option value="${p.id}"${cv===p.id?' selected':''}>${p.name}</option>`).join('');
-  }
-  if(tfa) {
-    const cv = tfa.value;
-    tfa.innerHTML = '<option value="">Tất cả thành viên</option>'+state.members.map(m=>`<option value="${m.id}"${cv===m.id?' selected':''}>${m.name}</option>`).join('');
-  }
-  const s = (document.getElementById('task-search')?.value||'').toLowerCase();
-  const fp = tfp?.value||'';
-  const fa = tfa?.value||'';
-  const cols = ['Todo','In Progress','Review','Done'];
-  const colColors = {'Todo':'var(--text3)','In Progress':'var(--accent2)','Review':'var(--warning)','Done':'var(--success)'};
-  const colIcons = {'Todo':'⏳','In Progress':'⚡','Review':'🔍','Done':'✅'};
-  const board = document.getElementById('kanban-board');
-  board.innerHTML = cols.map(col => {
-    let tasks = state.tasks.filter(t => {
-      if(t.status!==col) return false;
-      if(s && !t.title.toLowerCase().includes(s)) return false;
-      if(fp && t.project_id!==fp) return false;
-      if(fa && t.assignee_id!==fa) return false;
+  if(tfp){const cv=tfp.value;tfp.innerHTML='<option value="">Tất cả dự án</option>'+state.projects.map(p=>`<option value="${p.id}"${cv===p.id?' selected':''}>${p.name}</option>`).join('');}
+  if(tfa){const cv=tfa.value;tfa.innerHTML='<option value="">Tất cả thành viên</option>'+state.members.map(m=>`<option value="${m.id}"${cv===m.id?' selected':''}>${m.name}</option>`).join('');}
+  const s=(document.getElementById('task-search')?.value||'').toLowerCase();
+  const fp=tfp?.value||'';
+  const fa=tfa?.value||'';
+  const cols=['Todo','In Progress','Review','Done'];
+  const colColors={'Todo':'var(--text3)','In Progress':'var(--accent2)','Review':'var(--warning)','Done':'var(--success)'};
+  const colIcons={'Todo':'⏳','In Progress':'⚡','Review':'🔍','Done':'✅'};
+  const board=document.getElementById('kanban-board');
+  board.innerHTML=cols.map(col=>{
+    let tasks=state.tasks.filter(t=>{
+      if(t.status!==col)return false;
+      if(s&&!t.title.toLowerCase().includes(s))return false;
+      if(fp&&t.project_id!==fp)return false;
+      if(fa&&t.assignee_id!==fa)return false;
       return true;
     });
-    const cards = tasks.map(t => {
-      const prio = t.priority==='Cao'?'var(--danger)':t.priority==='Trung bình'?'var(--warning)':'var(--text3)';
+    const cards=tasks.map(t=>{
+      const prio=t.priority==='Cao'?'var(--danger)':t.priority==='Trung bình'?'var(--warning)':'var(--text3)';
       return `<div class="task-card" onclick="editTask('${t.id}')">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <span style="width:6px;height:6px;border-radius:50%;background:${prio};display:inline-block"></span>
@@ -501,13 +704,13 @@ function renderTasks() {
 
 // ── TEAM ──
 function renderTeam() {
-  const grid = document.getElementById('team-grid');
-  if(!state.members.length) { grid.innerHTML=empty('👥','Chưa có thành viên nào'); return; }
-  grid.innerHTML = state.members.map((m,i) => {
-    const tasks = state.tasks.filter(t=>t.assignee_id===m.id);
-    const done = tasks.filter(t=>t.status==='Done').length;
-    const open = tasks.filter(t=>t.status!=='Done').length;
-    const skills = (m.skills||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const grid=document.getElementById('team-grid');
+  if(!state.members.length){grid.innerHTML=empty('👥','Chưa có thành viên');return;}
+  grid.innerHTML=state.members.map((m,i)=>{
+    const tasks=state.tasks.filter(t=>t.assignee_id===m.id);
+    const done=tasks.filter(t=>t.status==='Done').length;
+    const open=tasks.filter(t=>t.status!=='Done').length;
+    const skills=(m.skills||'').split(',').map(s=>s.trim()).filter(Boolean);
     return `<div class="member-card">
       <div class="mc-avatar" style="background:${MC[i%MC.length]}">${initials(m.name)}</div>
       <div class="mc-name">${m.name}</div>
@@ -528,80 +731,93 @@ function renderTeam() {
 
 // ── DOCS ──
 function renderDocs() {
-  const s = (document.getElementById('doc-search')?.value||'').toLowerCase();
-  const ft = document.getElementById('df-type')?.value||'';
-  let list = state.docs.filter(d => {
-    if(s && !d.name.toLowerCase().includes(s)) return false;
-    if(ft && d.type!==ft) return false;
+  const s=(document.getElementById('doc-search')?.value||'').toLowerCase();
+  const ft=document.getElementById('df-type')?.value||'';
+  let list=state.docs.filter(d=>{
+    if(s&&!d.name.toLowerCase().includes(s))return false;
+    if(ft&&d.type!==ft)return false;
     return true;
   });
-  const icons = {'P&ID':'🔧','PLC Program':'💻','SCADA':'🖥️','Wiring':'⚡','Manual':'📖','Report':'📊','Khác':'📄'};
-  const grid = document.getElementById('doc-grid');
-  grid.innerHTML = list.length ? list.map(d => `<div class="doc-card" onclick="editDoc('${d.id}')">
+  const icons={'P&ID':'🔧','PLC Program':'💻','SCADA':'🖥️','Wiring':'⚡','Manual':'📖','Report':'📊','Khác':'📄'};
+  const grid=document.getElementById('doc-grid');
+  grid.innerHTML=list.length?list.map(d=>`<div class="doc-card" onclick="editDoc('${d.id}')">
     <div class="doc-icon">${icons[d.type]||'📄'}</div>
     <div class="doc-name">${d.name}</div>
     <div class="doc-meta">${d.project_name||'—'} · Rev.${d.revision||'01'}</div>
     <div class="doc-tags"><span class="badge badge-info">${d.type}</span><span class="badge badge-success">${d.status||'Draft'}</span></div>
     <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${d.updated_at||today()}</div>
     ${d.link?`<a href="${d.link}" onclick="event.stopPropagation()" style="font-size:11px;color:var(--accent2)">🔗 Mở file</a>`:''}
-  </div>`).join('') : empty('📁','Không tìm thấy tài liệu');
+  </div>`).join(''):empty('📁','Không tìm thấy tài liệu');
 }
-function filterDocs() { renderDocs(); }
+function filterDocs(){renderDocs();}
 
 // ── KPI ──
 function renderKPI() {
-  const months = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
-  const now = new Date().getMonth();
-  const vals = months.map((_,i) => i<now ? Math.floor(Math.random()*25+5) : i===now ? (state.stats.tasks_done||0) : 0);
-  const mx = Math.max(...vals,1);
-  document.getElementById('kpi-bars').innerHTML = vals.map((v,i) => {
-    const h = Math.round(v/mx*76);
-    const c = i===now?'var(--accent)':i<now?'var(--accent2)':'var(--bg4)';
+  const months=['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+  const now=new Date().getMonth();
+  const vals=months.map((_,i)=>i<now?Math.floor(Math.random()*25+5):i===now?(state.stats.tasks_done||0):0);
+  const mx=Math.max(...vals,1);
+  document.getElementById('kpi-bars').innerHTML=vals.map((v,i)=>{
+    const h=Math.round(v/mx*76);
+    const c=i===now?'var(--accent)':i<now?'var(--accent2)':'var(--bg4)';
     return `<div class="bar" style="height:${h}px;background:${c}" title="${months[i]}: ${v}"></div>`;
   }).join('');
-  document.getElementById('kpi-labels').innerHTML = months.map(m=>`<div class="bar-label">${m}</div>`).join('');
+  document.getElementById('kpi-labels').innerHTML=months.map(m=>`<div class="bar-label">${m}</div>`).join('');
 
-  const types = ['Oil & Gas','Power Plant','Mining','Khác'];
-  const total = Math.max(state.projects.length,1);
-  const ic = {'Oil & Gas':'var(--warning)','Power Plant':'var(--accent2)','Mining':'var(--accent4)','Khác':'var(--text3)'};
-  document.getElementById('kpi-industry').innerHTML = types.map(t=>{
-    const cnt = state.projects.filter(p=>p.type===t).length;
+  const types=['Oil & Gas','Power Plant','Mining','Khác'];
+  const total=Math.max(state.projects.length,1);
+  const ic={'Oil & Gas':'var(--warning)','Power Plant':'var(--accent2)','Mining':'var(--accent4)','Khác':'var(--text3)'};
+  document.getElementById('kpi-industry').innerHTML=types.map(t=>{
+    const cnt=state.projects.filter(p=>p.type===t).length;
     return `<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>${t}</span><span style="font-family:var(--mono);color:var(--text2)">${cnt}</span></div>
       <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:${Math.round(cnt/total*100)}%;background:${ic[t]}"></div></div>
     </div>`;
   }).join('');
 
-  document.getElementById('kpi-perf').innerHTML = state.members.length ? state.members.map((m,i)=>{
-    const tot = state.tasks.filter(t=>t.assignee_id===m.id).length;
-    const dn = state.tasks.filter(t=>t.assignee_id===m.id&&t.status==='Done').length;
-    const pct = tot>0?Math.round(dn/tot*100):0;
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>${m.name.split(' ').pop()}</span><span style="font-family:var(--mono);color:var(--accent)">${pct}%</span></div>
-      <div class="progress-bar" style="height:6px"><div class="progress-fill" style="width:${pct}%;background:${MC[i%MC.length]}"></div></div>
+  // Phase distribution KPI
+  const phaseKpi=document.getElementById('kpi-phase');
+  phaseKpi.innerHTML=PHASES.map((ph,i)=>{
+    const cnt=state.projects.filter(p=>p.current_phase===ph).length;
+    return `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px;width:20px">${PHASE_ICONS[i]}</span>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span style="color:var(--text2)">${ph}</span>
+          <span style="font-family:var(--mono);color:${PHASE_COLORS[i]}">${cnt}</span>
+        </div>
+        <div class="progress-bar" style="height:5px"><div class="progress-fill" style="width:${Math.round(cnt/Math.max(total,1)*100)}%;background:${PHASE_COLORS[i]}"></div></div>
+      </div>
     </div>`;
-  }).join('') : empty('👥','Chưa có thành viên');
+  }).join('');
 }
 
 // ── GANTT ──
 function renderGantt() {
-  const tbody = document.getElementById('gantt-tbody');
-  const clrs = {'Oil & Gas':'#f59e0b','Power Plant':'#0099ff','Mining':'#a855f7','Khác':'#00d4aa'};
-  tbody.innerHTML = state.projects.length ? state.projects.map(p => `<tr>
-    <td style="font-weight:500">${p.name}</td>
-    <td><span class="badge ${typeBadge(p.type)}">${p.type}</span></td>
-    <td style="font-size:11px;font-family:var(--mono);color:var(--text2)">${p.start_date||'—'}</td>
-    <td style="font-size:11px;font-family:var(--mono);color:var(--text2)">${p.deadline||'—'}</td>
-    <td><div style="background:var(--bg4);border-radius:4px;height:28px;overflow:hidden;position:relative">
-      <div class="gantt-fill" style="width:${p.progress}%;background:${clrs[p.type]||'var(--accent)'};min-width:${p.progress>5?'auto':'0'}">${p.progress>10?p.progress+'%':''}</div>
-    </div></td>
-    <td style="font-family:var(--mono);font-size:12px;color:var(--accent)">${p.progress}%</td>
-  </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">Chưa có dự án nào</td></tr>`;
+  const tbody=document.getElementById('gantt-tbody');
+  const clrs={'Oil & Gas':'#f59e0b','Power Plant':'#0099ff','Mining':'#a855f7','Khác':'#00d4aa'};
+  tbody.innerHTML=state.projects.length?state.projects.map(p=>{
+    const ci=phaseIndex(p.current_phase);
+    return `<tr>
+      <td style="font-weight:500;font-size:12px">${p.name}</td>
+      <td><span class="badge ${typeBadge(p.type)}">${p.type}</span></td>
+      <td><div style="display:flex;align-items:center;gap:4px;font-size:11px">
+        <span>${PHASE_ICONS[ci]||'🔄'}</span>
+        <span style="color:${PHASE_COLORS[ci]};font-family:var(--mono)">${p.current_phase||'—'}</span>
+      </div></td>
+      <td style="font-size:11px;font-family:var(--mono);color:var(--text2)">${p.start_date||'—'}</td>
+      <td style="font-size:11px;font-family:var(--mono);color:var(--text2)">${p.deadline||'—'}</td>
+      <td><div style="background:var(--bg4);border-radius:4px;height:28px;overflow:hidden;position:relative">
+        <div class="gantt-fill" style="width:${p.progress}%;background:${clrs[p.type]||'var(--accent)'}">${p.progress>10?p.progress+'%':''}</div>
+      </div></td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--accent)">${p.progress}%</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">Chưa có dự án nào</td></tr>`;
 }
 
 // ── MODALS ──
 function openAddModal() {
-  editId = null;
+  editId=null;
   if(currentPanel==='projects') showProjectModal(null);
   else if(currentPanel==='tasks') showTaskModal(null);
   else if(currentPanel==='team') showMemberModal(null);
@@ -610,9 +826,10 @@ function openAddModal() {
 }
 
 function showProjectModal(p) {
-  modalMode = 'project';
-  document.getElementById('modal-title').textContent = p ? 'Sửa dự án' : 'Thêm dự án mới';
-  document.getElementById('modal-body').innerHTML = `
+  modalMode='project'; editId=p?p.id:null;
+  document.getElementById('modal-title').textContent = p?'Sửa dự án':'Thêm dự án mới';
+  const curPhase = p?.current_phase||'Budget Approval';
+  document.getElementById('modal-body').innerHTML=`
     <div class="form-group"><label class="form-label">Tên dự án *</label><input class="form-input" id="f-name" value="${p?.name||''}"></div>
     <div class="form-group"><label class="form-label">Loại dự án</label><select class="form-select" id="f-type">
       ${['Oil & Gas','Power Plant','Mining','Khác'].map(t=>`<option${p?.type===t?' selected':''}>${t}</option>`).join('')}
@@ -626,6 +843,9 @@ function showProjectModal(p) {
     <div class="form-group"><label class="form-label">Leader</label><select class="form-select" id="f-leader">
       <option value="">— Chọn —</option>${state.members.map(m=>`<option value="${m.id}"${p?.leader_id===m.id?' selected':''}>${m.name}</option>`).join('')}
     </select></div>
+    <div class="form-group"><label class="form-label">Phase hiện tại</label><select class="form-select" id="f-phase">
+      ${PHASES.map((ph,i)=>`<option value="${ph}"${curPhase===ph?' selected':''}>${PHASE_ICONS[i]} ${ph}</option>`).join('')}
+    </select></div>
     <div class="form-group"><label class="form-label">Tiến độ: <span id="pv">${p?.progress||0}</span>%</label>
       <input type="range" min="0" max="100" value="${p?.progress||0}" id="f-progress" oninput="document.getElementById('pv').textContent=this.value"></div>
     <div class="form-group"><label class="form-label">Trạng thái</label><select class="form-select" id="f-status">
@@ -635,9 +855,9 @@ function showProjectModal(p) {
 }
 
 function showTaskModal(t) {
-  modalMode = 'task';
-  document.getElementById('modal-title').textContent = t ? 'Sửa công việc' : 'Thêm công việc mới';
-  document.getElementById('modal-body').innerHTML = `
+  modalMode='task';
+  document.getElementById('modal-title').textContent=t?'Sửa công việc':'Thêm công việc mới';
+  document.getElementById('modal-body').innerHTML=`
     <div class="form-group"><label class="form-label">Tiêu đề *</label><input class="form-input" id="f-name" value="${t?.title||''}"></div>
     <div class="form-group"><label class="form-label">Dự án</label><select class="form-select" id="f-proj">
       <option value="">— Chọn dự án —</option>${state.projects.map(p=>`<option value="${p.id}"${t?.project_id===p.id?' selected':''}>${p.name}</option>`).join('')}
@@ -659,9 +879,9 @@ function showTaskModal(t) {
 }
 
 function showMemberModal(m) {
-  modalMode = 'member';
-  document.getElementById('modal-title').textContent = m ? 'Sửa thành viên' : 'Thêm thành viên';
-  document.getElementById('modal-body').innerHTML = `
+  modalMode='member';
+  document.getElementById('modal-title').textContent=m?'Sửa thành viên':'Thêm thành viên';
+  document.getElementById('modal-body').innerHTML=`
     <div class="form-group"><label class="form-label">Họ và tên *</label><input class="form-input" id="f-name" value="${m?.name||''}"></div>
     <div class="form-group"><label class="form-label">Chức danh</label><select class="form-select" id="f-role">
       ${['Team Leader','Senior Automation Engineer','Automation Engineer','PLC Programmer','SCADA Engineer','Instrumentation Engineer','Junior Engineer','Technician'].map(r=>`<option${m?.role===r?' selected':''}>${r}</option>`).join('')}
@@ -673,9 +893,9 @@ function showMemberModal(m) {
 }
 
 function showDocModal(d) {
-  modalMode = 'doc';
-  document.getElementById('modal-title').textContent = d ? 'Sửa tài liệu' : 'Thêm tài liệu';
-  document.getElementById('modal-body').innerHTML = `
+  modalMode='doc';
+  document.getElementById('modal-title').textContent=d?'Sửa tài liệu':'Thêm tài liệu';
+  document.getElementById('modal-body').innerHTML=`
     <div class="form-group"><label class="form-label">Tên tài liệu *</label><input class="form-input" id="f-name" value="${d?.name||''}"></div>
     <div class="form-group"><label class="form-label">Loại</label><select class="form-select" id="f-type">
       ${['P&ID','PLC Program','SCADA','Wiring','Manual','Report','Khác'].map(t=>`<option${d?.type===t?' selected':''}>${t}</option>`).join('')}
@@ -690,59 +910,68 @@ function showDocModal(d) {
         ${['Draft','Review','Approved','Obsolete'].map(s=>`<option${d?.status===s?' selected':''}>${s}</option>`).join('')}
       </select></div>
     </div>
-    <div class="form-group"><label class="form-label">Link / Đường dẫn file</label><input class="form-input" id="f-link" placeholder="https:// hoặc \\\\server\\share\\file.pdf" value="${d?.link||''}"></div>`;
+    <div class="form-group"><label class="form-label">Link file</label><input class="form-input" id="f-link" value="${d?.link||''}"></div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); editId=null; modalMode=''; }
-
 function g(id) { const el=document.getElementById(id); return el?el.value.trim():''; }
 
 async function saveModal() {
   try {
     if(modalMode==='project') {
-      if(!g('f-name')) { alert('Vui lòng nhập tên dự án!'); return; }
-      const body = { name:g('f-name'), type:g('f-type'), client:g('f-client'), description:g('f-desc'), start_date:g('f-start'), deadline:g('f-deadline'), leader_id:g('f-leader'), progress:parseInt(g('f-progress'))||0, status:g('f-status') };
-      editId ? await PUT(`/api/projects/${editId}`, body) : await POST('/api/projects', body);
+      if(!g('f-name')){alert('Vui lòng nhập tên dự án!');return;}
+      const body={name:g('f-name'),type:g('f-type'),client:g('f-client'),description:g('f-desc'),start_date:g('f-start'),deadline:g('f-deadline'),leader_id:g('f-leader'),progress:parseInt(g('f-progress'))||0,status:g('f-status'),current_phase:g('f-phase'),phase_notes:'{}'};
+      editId?await PUT(`/api/projects/${editId}`,body):await POST('/api/projects',body);
       showToast(editId?'Đã cập nhật dự án':'Đã thêm dự án mới');
     } else if(modalMode==='task') {
-      if(!g('f-name')) { alert('Vui lòng nhập tiêu đề!'); return; }
-      const body = { title:g('f-name'), project_id:g('f-proj'), assignee_id:g('f-assign'), description:g('f-desc'), priority:g('f-priority'), status:g('f-status'), due_date:g('f-due') };
-      editId ? await PUT(`/api/tasks/${editId}`, body) : await POST('/api/tasks', body);
-      showToast(editId?'Đã cập nhật công việc':'Đã thêm công việc mới');
+      if(!g('f-name')){alert('Vui lòng nhập tiêu đề!');return;}
+      const body={title:g('f-name'),project_id:g('f-proj'),assignee_id:g('f-assign'),description:g('f-desc'),priority:g('f-priority'),status:g('f-status'),due_date:g('f-due')};
+      editId?await PUT(`/api/tasks/${editId}`,body):await POST('/api/tasks',body);
+      showToast(editId?'Đã cập nhật':'Đã thêm công việc');
     } else if(modalMode==='member') {
-      if(!g('f-name')) { alert('Vui lòng nhập họ tên!'); return; }
-      const body = { name:g('f-name'), role:g('f-role'), skills:g('f-skills'), email:g('f-email'), notes:g('f-notes') };
-      editId ? await PUT(`/api/members/${editId}`, body) : await POST('/api/members', body);
-      showToast(editId?'Đã cập nhật thành viên':'Đã thêm thành viên');
+      if(!g('f-name')){alert('Vui lòng nhập họ tên!');return;}
+      const body={name:g('f-name'),role:g('f-role'),skills:g('f-skills'),email:g('f-email'),notes:g('f-notes')};
+      editId?await PUT(`/api/members/${editId}`,body):await POST('/api/members',body);
+      showToast(editId?'Đã cập nhật':'Đã thêm thành viên');
     } else if(modalMode==='doc') {
-      if(!g('f-name')) { alert('Vui lòng nhập tên tài liệu!'); return; }
-      const body = { name:g('f-name'), type:g('f-type'), project_id:g('f-proj'), description:g('f-desc'), revision:g('f-rev'), status:g('f-status'), link:g('f-link') };
-      editId ? await PUT(`/api/documents/${editId}`, body) : await POST('/api/documents', body);
-      showToast(editId?'Đã cập nhật tài liệu':'Đã thêm tài liệu');
+      if(!g('f-name')){alert('Vui lòng nhập tên!');return;}
+      const body={name:g('f-name'),type:g('f-type'),project_id:g('f-proj'),description:g('f-desc'),revision:g('f-rev'),status:g('f-status'),link:g('f-link')};
+      editId?await PUT(`/api/documents/${editId}`,body):await POST('/api/documents',body);
+      showToast(editId?'Đã cập nhật':'Đã thêm tài liệu');
+    } else if(modalMode==='phase') {
+      const p = state.projects.find(x=>x.id===editId);
+      const notes = (() => { try{ return JSON.parse(p?.phase_notes||'{}'); }catch(e){ return {}; } })();
+      const phaseName = g('f-phase-name');
+      const noteVal = g('f-phase-note');
+      if(noteVal) notes[phaseName]=noteVal;
+      else delete notes[phaseName];
+      const setActive = document.getElementById('f-set-active')?.checked;
+      const newPhase = setActive ? phaseName : p.current_phase;
+      await PUT(`/api/projects/${editId}/phase`,{current_phase:newPhase,phase_notes:JSON.stringify(notes)});
+      showToast('Đã cập nhật phase');
     }
     closeModal();
     await loadAll();
-  } catch(e) { /* error already shown */ }
+  } catch(e) {}
 }
 
 async function deleteRecord(type, id) {
-  if(!confirm('Xóa mục này?')) return;
-  const paths = { projects:'/api/projects/', tasks:'/api/tasks/', members:'/api/members/', docs:'/api/documents/' };
+  if(!confirm('Xóa mục này?'))return;
+  const paths={projects:'/api/projects/',tasks:'/api/tasks/',members:'/api/members/',docs:'/api/documents/'};
   await DEL(paths[type]+id);
   showToast('Đã xóa');
   await loadAll();
 }
 
-function editProject(id) { editId=id; const p=state.projects.find(x=>x.id===id); showProjectModal(p); }
-function editTask(id) { editId=id; const t=state.tasks.find(x=>x.id===id); showTaskModal(t); }
-function editMember(id) { editId=id; const m=state.members.find(x=>x.id===id); showMemberModal(m); }
-function editDoc(id) { editId=id; const d=state.docs.find(x=>x.id===id); showDocModal(d); }
+function editProject(id){editId=id;showProjectModal(state.projects.find(x=>x.id===id));}
+function editTask(id){editId=id;showTaskModal(state.tasks.find(x=>x.id===id));}
+function editMember(id){editId=id;showMemberModal(state.members.find(x=>x.id===id));}
+function editDoc(id){editId=id;showDocModal(state.docs.find(x=>x.id===id));}
 
-// ── INIT ──
 checkAPI();
 loadAll();
-setInterval(checkAPI, 10000);
+setInterval(checkAPI,10000);
 </script>
 </body>
 </html>

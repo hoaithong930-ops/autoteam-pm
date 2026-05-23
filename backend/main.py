@@ -7,7 +7,7 @@ from typing import Optional, List
 import sqlite3, os, uuid, json
 from datetime import date
 
-app = FastAPI(title="AutoTeam PM API", version="1.0.0")
+app = FastAPI(title="AutoTeam PM API", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,11 +16,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH  = os.path.join(BASE_DIR, "..", "data", "autoteam.db")
+BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+DB_PATH   = os.path.join(BASE_DIR, "..", "data", "autoteam.db")
 FRONT_DIR = os.path.join(BASE_DIR, "..", "frontend")
 
-# ─── DATABASE ───────────────────────────────────────────────
+PHASES = [
+    "Budget Approval",
+    "Bidding / Tender",
+    "EPC Contract",
+    "Engineering / Design",
+    "Procurement",
+    "Construction",
+    "Commissioning",
+    "Handover / Close-out",
+]
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -51,6 +61,8 @@ def init_db():
         leader_id TEXT,
         progress INTEGER DEFAULT 0,
         status TEXT DEFAULT 'Chờ bắt đầu',
+        current_phase TEXT DEFAULT 'Budget Approval',
+        phase_notes TEXT DEFAULT '{}',
         created_at TEXT
     );
     CREATE TABLE IF NOT EXISTS tasks (
@@ -79,6 +91,13 @@ def init_db():
         FOREIGN KEY(project_id) REFERENCES projects(id)
     );
     """)
+    # migrate: add phase columns if not exist
+    try:
+        c.execute("ALTER TABLE projects ADD COLUMN current_phase TEXT DEFAULT 'Budget Approval'")
+    except: pass
+    try:
+        c.execute("ALTER TABLE projects ADD COLUMN phase_notes TEXT DEFAULT '{}'")
+    except: pass
     conn.commit()
     conn.close()
 
@@ -99,12 +118,12 @@ def seed_db():
     ]
     c.executemany("INSERT INTO members VALUES (?,?,?,?,?,?,?)", members)
     projects = [
-        ("p1","PLC Upgrade - Wellhead Platform WHP-A","Oil & Gas","PetroVietnam E&P","Nâng cấp PLC S7-300 lên S7-1500 cho 12 giếng","2026-01-15","2026-07-30","m1",65,"Đang triển khai",today_str),
-        ("p2","SCADA Control Room - Power Plant 4","Power Plant","EVN Thủ Đức","Xây dựng SCADA trung tâm 300MW","2026-02-01","2026-09-15","m2",35,"Đang triển khai",today_str),
-        ("p3","Safety Shutdown System - Coal Mine","Mining","Vinacomin","Thiết kế SIS cho khai thác than hầm lò","2026-03-10","2026-12-31","m3",15,"Đang triển khai",today_str),
-        ("p4","DCS Commissioning - Gas Processing Plant","Oil & Gas","PV Gas","Commissioning DCS ABB nhà máy xử lý khí","2025-10-01","2026-06-01","m5",90,"Đang triển khai",today_str),
+        ("p1","PLC Upgrade - Wellhead Platform WHP-A","Oil & Gas","PetroVietnam E&P","Nâng cấp PLC S7-300 lên S7-1500","2026-01-15","2026-07-30","m1",65,"Đang triển khai","Construction",'{}',today_str),
+        ("p2","SCADA Control Room - Power Plant 4","Power Plant","EVN Thủ Đức","Xây dựng SCADA trung tâm 300MW","2026-02-01","2026-09-15","m2",35,"Đang triển khai","Engineering / Design",'{}',today_str),
+        ("p3","Safety Shutdown System - Coal Mine","Mining","Vinacomin","Thiết kế SIS cho khai thác than hầm lò","2026-03-10","2026-12-31","m3",15,"Đang triển khai","Bidding / Tender",'{}',today_str),
+        ("p4","DCS Commissioning - Gas Processing Plant","Oil & Gas","PV Gas","Commissioning DCS ABB nhà máy xử lý khí","2025-10-01","2026-06-01","m5",90,"Đang triển khai","Commissioning",'{}',today_str),
     ]
-    c.executemany("INSERT INTO projects VALUES (?,?,?,?,?,?,?,?,?,?,?)", projects)
+    c.executemany("INSERT INTO projects VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", projects)
     tasks = [
         ("t1","Lập trình Function Block valve control S7-1500","p1","m3","Viết FB cho 24 van WHP-A","Cao","In Progress","2026-05-28",today_str),
         ("t2","Thiết kế HMI màn hình overview platform","p1","m2","SCADA overview wellhead","Trung bình","Todo","2026-06-05",today_str),
@@ -146,6 +165,8 @@ class ProjectIn(BaseModel):
     leader_id: Optional[str] = ""
     progress: Optional[int] = 0
     status: Optional[str] = "Chờ bắt đầu"
+    current_phase: Optional[str] = "Budget Approval"
+    phase_notes: Optional[str] = "{}"
 
 class TaskIn(BaseModel):
     title: str
@@ -164,6 +185,25 @@ class DocumentIn(BaseModel):
     revision: Optional[str] = "01"
     status: Optional[str] = "Draft"
     link: Optional[str] = ""
+
+class PhaseUpdate(BaseModel):
+    current_phase: str
+    phase_notes: Optional[str] = "{}"
+
+# ─── PHASES ────────────────────────────────────────────────
+@app.get("/api/phases")
+def get_phases():
+    return PHASES
+
+@app.put("/api/projects/{pid}/phase")
+def update_phase(pid: str, body: PhaseUpdate):
+    conn = get_db()
+    conn.execute(
+        "UPDATE projects SET current_phase=?, phase_notes=? WHERE id=?",
+        (body.current_phase, body.phase_notes, pid)
+    )
+    conn.commit(); conn.close()
+    return {"ok": True}
 
 # ─── MEMBERS ───────────────────────────────────────────────
 @app.get("/api/members")
@@ -213,9 +253,10 @@ def list_projects():
 def create_project(p: ProjectIn):
     conn = get_db()
     pid = str(uuid.uuid4())[:8]
-    conn.execute("INSERT INTO projects VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+    conn.execute("INSERT INTO projects VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (pid, p.name, p.type, p.client, p.description,
-         p.start_date, p.deadline, p.leader_id, p.progress, p.status, str(date.today())))
+         p.start_date, p.deadline, p.leader_id, p.progress,
+         p.status, p.current_phase, p.phase_notes, str(date.today())))
     conn.commit(); conn.close()
     return {"id": pid}
 
@@ -223,9 +264,11 @@ def create_project(p: ProjectIn):
 def update_project(pid: str, p: ProjectIn):
     conn = get_db()
     conn.execute("""UPDATE projects SET name=?,type=?,client=?,description=?,
-        start_date=?,deadline=?,leader_id=?,progress=?,status=? WHERE id=?""",
+        start_date=?,deadline=?,leader_id=?,progress=?,status=?,
+        current_phase=?,phase_notes=? WHERE id=?""",
         (p.name, p.type, p.client, p.description,
-         p.start_date, p.deadline, p.leader_id, p.progress, p.status, pid))
+         p.start_date, p.deadline, p.leader_id, p.progress,
+         p.status, p.current_phase, p.phase_notes, pid))
     conn.commit(); conn.close()
     return {"ok": True}
 
@@ -316,22 +359,27 @@ def delete_document(did: str):
     conn.commit(); conn.close()
     return {"ok": True}
 
-# ─── DASHBOARD STATS ───────────────────────────────────────
+# ─── STATS ─────────────────────────────────────────────────
 @app.get("/api/stats")
 def get_stats():
     conn = get_db()
     c = conn.cursor()
+    phase_rows = c.execute(
+        "SELECT current_phase, COUNT(*) as cnt FROM projects GROUP BY current_phase"
+    ).fetchall()
+    phase_dist = {r["current_phase"]: r["cnt"] for r in phase_rows}
     return {
-        "projects":  c.execute("SELECT COUNT(*) FROM projects").fetchone()[0],
+        "projects":   c.execute("SELECT COUNT(*) FROM projects").fetchone()[0],
         "tasks_done": c.execute("SELECT COUNT(*) FROM tasks WHERE status='Done'").fetchone()[0],
         "tasks_open": c.execute("SELECT COUNT(*) FROM tasks WHERE status!='Done'").fetchone()[0],
-        "members":   c.execute("SELECT COUNT(*) FROM members").fetchone()[0],
+        "members":    c.execute("SELECT COUNT(*) FROM members").fetchone()[0],
         "tasks_today": c.execute(
             "SELECT COUNT(*) FROM tasks WHERE due_date=? AND status!='Done'",
             (str(date.today()),)).fetchone()[0],
+        "phase_distribution": phase_dist,
     }
 
-# ─── SERVE FRONTEND ────────────────────────────────────────
+# ─── FRONTEND ──────────────────────────────────────────────
 if os.path.exists(FRONT_DIR):
     app.mount("/static", StaticFiles(directory=FRONT_DIR, html=True), name="static")
 
@@ -340,11 +388,10 @@ def root():
     index = os.path.join(FRONT_DIR, "index.html")
     if os.path.exists(index):
         return FileResponse(index)
-    return {"message": "AutoTeam PM API running. Place frontend in /frontend/index.html"}
+    return {"message": "AutoTeam PM API v2.1"}
 
-# ─── STARTUP ───────────────────────────────────────────────
 @app.on_event("startup")
 def startup():
     init_db()
     seed_db()
-    print("✅ AutoTeam PM Server ready at http://localhost:8000")
+    print("AutoTeam PM Server ready at http://localhost:8000")
