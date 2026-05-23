@@ -204,6 +204,30 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 .phase-note-btn:hover{color:var(--accent)}
 
 @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}.kanban{grid-template-columns:repeat(2,1fr)}.team-grid{grid-template-columns:repeat(2,1fr)}.doc-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* ── INVENTORY ── */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.inv-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .2s;cursor:pointer}
+.inv-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.inv-card-header{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.inv-card-code{font-size:9px;font-family:var(--mono);color:var(--accent);letter-spacing:1px;margin-bottom:4px}
+.inv-card-name{font-size:13px;font-weight:600;line-height:1.4}
+.inv-card-desc{font-size:11px;color:var(--text2);margin-top:3px}
+.inv-card-body{padding:10px 16px 14px}
+.inv-card-specs{font-size:11px;font-family:var(--mono);color:var(--text2);margin-bottom:8px}
+.vendor-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.vendor-row:last-child{border-bottom:none}
+.vendor-star{color:var(--warning);font-size:12px}
+.vendor-brand{font-size:12px;font-weight:500;min-width:90px}
+.vendor-model{font-size:11px;font-family:var(--mono);color:var(--text2);flex:1}
+.vendor-origin{font-size:10px;padding:1px 6px;background:var(--bg4);border-radius:4px;color:var(--text2)}
+.vendor-price{font-size:11px;font-family:var(--mono);color:var(--accent);text-align:right;min-width:80px}
+.inv-detail-modal{width:680px}
+.inv-tag{display:inline-flex;align-items:center;padding:2px 8px;background:rgba(0,212,170,.08);color:var(--accent);border:1px solid rgba(0,212,170,.15);border-radius:4px;font-size:10px;font-family:var(--mono);margin:2px}
+.cat-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--bg4);border:1px solid var(--border2);border-radius:20px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.cat-chip:hover,.cat-chip.active{background:rgba(0,212,170,.12);border-color:var(--accent);color:var(--accent)}
+.cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.add-vendor-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -212,7 +236,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
   <div class="logo">
     <div class="logo-mark">
       <div class="logo-icon">AT</div>
-      <div><div class="logo-text">AutoTeam PM</div><div class="logo-sub">v2.1 // Phase Tracking</div></div>
+      <div><div class="logo-text">AutoTeam PM</div><div class="logo-sub">v2.2 // Inventory + Phase</div></div>
     </div>
   </div>
   <div class="nav">
@@ -220,6 +244,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
     <div class="nav-item active" onclick="showPanel('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
     <div class="nav-item" onclick="showPanel('projects')"><span class="nav-icon">🏗️</span> Dự án <span class="nav-badge" id="proj-badge">0</span></div>
     <div class="nav-item" onclick="showPanel('phases')"><span class="nav-icon">🔄</span> Phase Timeline</div>
+    <div class="nav-item" onclick="showPanel('inventory')"><span class="nav-icon">🗃️</span> Vật tư kỹ thuật <span class="nav-badge" id="inv-badge">0</span></div>
     <div class="nav-item" onclick="showPanel('tasks')"><span class="nav-icon">✅</span> Công việc <span class="nav-badge" id="task-badge">0</span></div>
     <div class="nav-section">Team</div>
     <div class="nav-item" onclick="showPanel('team')"><span class="nav-icon">👥</span> Thành viên</div>
@@ -325,6 +350,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
       </div>
     </div>
 
+
+    <!-- INVENTORY -->
+    <div class="panel" id="panel-inventory">
+      <div class="cat-chips" id="cat-chips"></div>
+      <div class="toolbar">
+        <input class="search-box" type="text" placeholder="🔍  Tìm theo tên, mã, hãng, thông số..." id="inv-search" oninput="renderInventory()">
+        <button class="btn btn-ghost btn-sm" onclick="showPanel('inventory')">↻</button>
+      </div>
+      <div class="inv-grid" id="inv-grid"></div>
+    </div>
     <!-- GANTT -->
     <div class="panel" id="panel-gantt">
       <div class="gantt-wrap">
@@ -401,6 +436,7 @@ async function loadAll() {
   ]);
   state = { projects, tasks, members, docs, stats };
   document.getElementById('proj-badge').textContent = projects.length;
+  loadInventory();
   document.getElementById('task-badge').textContent = tasks.filter(t=>t.status!=='Done').length;
   // populate phase filter
   const pf = document.getElementById('pf-phase');
@@ -418,7 +454,7 @@ function showPanel(name) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   const navItems = document.querySelectorAll('.nav-item');
-  const map = {dashboard:0,projects:1,phases:2,tasks:3,team:4,docs:5,kpi:6,gantt:7};
+  const map = {dashboard:0,projects:1,phases:2,inventory:3,tasks:4,team:5,docs:6,kpi:7,gantt:8};
   if(navItems[map[name]]) navItems[map[name]].classList.add('active');
   currentPanel = name;
   const titles = {
@@ -429,6 +465,7 @@ function showPanel(name) {
     team:'Thành viên Team <span>Kỹ sư Tự động hóa</span>',
     docs:'Tài liệu Kỹ thuật <span>P&ID · PLC · SCADA · Wiring</span>',
     kpi:'KPI & Báo cáo <span>Hiệu suất dự án</span>',
+    inventory:'Vật tư kỹ thuật <span>Database thiết bị & BOM</span>',
     gantt:'Gantt Chart <span>Tiến độ tổng thể</span>'
   };
   document.getElementById('page-title').innerHTML = titles[name]||name;
@@ -441,6 +478,7 @@ function renderPanel(n) {
   if(n==='dashboard') renderDashboard();
   else if(n==='projects') renderProjects();
   else if(n==='phases') renderPhases();
+  else if(n==='inventory') renderInventory();
   else if(n==='tasks') renderTasks();
   else if(n==='team') renderTeam();
   else if(n==='docs') renderDocs();
@@ -822,6 +860,7 @@ function openAddModal() {
   else if(currentPanel==='tasks') showTaskModal(null);
   else if(currentPanel==='team') showMemberModal(null);
   else if(currentPanel==='docs') showDocModal(null);
+  else if(currentPanel==='inventory') showInvItemModal(null);
   else showProjectModal(null);
 }
 
@@ -953,6 +992,14 @@ async function saveModal() {
     }
     closeModal();
     await loadAll();
+  } else if(modalMode==='inv-new-item') {
+      if(!g('f-code')||!g('f-name')){alert('Vui lòng nhập Mã và Tên vật tư!');return;}
+      const tags = g('f-tags').split(',').map(t=>t.trim()).filter(Boolean);
+      const body = {item_code:g('f-code'),name:g('f-name'),category:g('f-cat'),description:g('f-desc'),unit:g('f-unit'),specs:g('f-specs'),tags:JSON.stringify(tags)};
+      editId?await PUT('/api/inventory/items/'+editId,body):await POST('/api/inventory/items',body);
+      showToast(editId?'Đã cập nhật vật tư':'Đã thêm vật tư mới');
+      closeModal(); await loadInventory(); return;
+    }
   } catch(e) {}
 }
 
