@@ -460,7 +460,7 @@ def get_stats():
            "tasks_today":c.execute("SELECT COUNT(*) FROM tasks WHERE due_date=? AND status!='Done'",(str(date.today()),)).fetchone()[0],
            "inventory_items":inv}
 
-@app.get("/api/phases"); 
+@app.get("/api/phases")
 def get_phases(): return PHASES
 
 if os.path.exists(FRONT_DIR):
