@@ -356,9 +356,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
       <div class="cat-chips" id="cat-chips"></div>
       <div class="toolbar">
         <input class="search-box" type="text" placeholder="🔍  Tìm theo tên, mã, hãng, thông số..." id="inv-search" oninput="renderInventory()">
-        <button class="btn btn-ghost btn-sm" onclick="showPanel('inventory')">↻</button>
+        <select class="filter" id="inv-f-cat" onchange="renderInventory()"><option value="">Tất cả danh mục</option></select>
+        <select class="filter" id="inv-f-origin" onchange="renderInventory()"><option value="">Tất cả xuất xứ</option></select>
+        <select class="filter" id="inv-f-brand" onchange="renderInventory()"><option value="">Tất cả hãng</option></select>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" id="inv-view-card" onclick="setInvView('card')">▦ Card</button>
+          <button class="btn btn-ghost btn-sm" id="inv-view-table" onclick="setInvView('table')">≡ Bảng</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadInventory()">↻</button>
       </div>
       <div class="inv-grid" id="inv-grid"></div>
+      <div id="inv-table-wrap" style="display:none">
+        <div class="card" style="padding:0;overflow:hidden">
+          <table class="proj-table">
+            <thead><tr><th>Mã</th><th>Tên</th><th>Danh mục</th><th>Thông số</th><th>Đơn vị</th><th>Số hãng</th><th>Hãng ưu tiên</th><th>Giá tham khảo</th></tr></thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <!-- GANTT -->
     <div class="panel" id="panel-gantt">
@@ -1017,6 +1032,7 @@ function editDoc(id){editId=id;showDocModal(state.docs.find(x=>x.id===id));}
 
 // ── INVENTORY ──
 let invState = { items:[] };
+let invView = 'card';
 async function loadInventory() {
   try {
     const items = await GET('/api/inventory/items');
@@ -1026,39 +1042,87 @@ async function loadInventory() {
   } catch(e) {}
 }
 function renderInventory() {
+  const cBtn=document.getElementById('inv-view-card');
+  const tBtn=document.getElementById('inv-view-table');
+  if(cBtn){cBtn.style.background=invView==='card'?'var(--bg4)':'';cBtn.style.color=invView==='card'?'var(--text)':'';}
+  if(tBtn){tBtn.style.background=invView==='table'?'var(--bg4)':'';tBtn.style.color=invView==='table'?'var(--text)':'';}
   const s=(document.getElementById('inv-search')?.value||'').toLowerCase();
   const activeCat=document.querySelector('.cat-chip.active')?.dataset.cat||'';
+  const fCat=(document.getElementById('inv-f-cat')?.value||'');
+  const fOrigin=(document.getElementById('inv-f-origin')?.value||'');
+  const fBrand=(document.getElementById('inv-f-brand')?.value||'');
   let items=invState.items;
   if(activeCat) items=items.filter(it=>it.category===activeCat);
-  if(s) items=items.filter(it=>(it.name+' '+(it.item_code||'')+' '+(it.specs||'')).toLowerCase().includes(s));
+  if(fCat) items=items.filter(it=>it.category===fCat);
+  if(fOrigin) items=items.filter(it=>(it.vendors||[]).some(v=>v.origin===fOrigin));
+  if(fBrand) items=items.filter(it=>(it.vendors||[]).some(v=>v.brand===fBrand));
+  if(s) items=items.filter(it=>{
+    const vs=(it.vendors||[]).map(v=>(v.brand||'')+' '+(v.model||'')).join(' ');
+    return (it.name+' '+(it.item_code||'')+' '+(it.specs||'')+' '+vs).toLowerCase().includes(s);
+  });
   const cats=[...new Set(invState.items.map(it=>it.category).filter(Boolean))];
   document.getElementById('cat-chips').innerHTML=
     `<div class="cat-chip${!activeCat?' active':''}" data-cat="" onclick="setCat('')">Tất cả (${invState.items.length})</div>`+
     cats.map(c=>`<div class="cat-chip${activeCat===c?' active':''}" data-cat="${c}" onclick="setCat('${c}')">${c} (${invState.items.filter(x=>x.category===c).length})</div>`).join('');
+  const allOrigins=[...new Set(invState.items.flatMap(it=>(it.vendors||[]).map(v=>v.origin).filter(Boolean)))];
+  const allBrands=[...new Set(invState.items.flatMap(it=>(it.vendors||[]).map(v=>v.brand).filter(Boolean)))];
+  const fcEl=document.getElementById('inv-f-cat');
+  const foEl=document.getElementById('inv-f-origin');
+  const fbEl=document.getElementById('inv-f-brand');
+  if(fcEl){const cv=fcEl.value;fcEl.innerHTML='<option value="">Tất cả danh mục</option>'+cats.map(c=>`<option${cv===c?' selected':''}>${c}</option>`).join('');}
+  if(foEl){const cv=foEl.value;foEl.innerHTML='<option value="">Tất cả xuất xứ</option>'+allOrigins.map(o=>`<option${cv===o?' selected':''}>${o}</option>`).join('');}
+  if(fbEl){const cv=fbEl.value;fbEl.innerHTML='<option value="">Tất cả hãng</option>'+allBrands.map(b=>`<option${cv===b?' selected':''}>${b}</option>`).join('');}
+  if(invView==='card') {
+    const grid=document.getElementById('inv-grid');
+    if(!items.length){grid.innerHTML=empty('🗃️','Không tìm thấy vật tư nào');return;}
+    grid.innerHTML=items.map(it=>{
+      const tags=(()=>{try{return JSON.parse(it.tags||'[]');}catch(e){return[];}})();
+      const vendors=it.vendors||[];
+      return `<div class="inv-card" onclick="showInvDetail('${it.id}')">
+        <div class="inv-card-header">
+          <div class="inv-card-code">${it.item_code||''}</div>
+          <div class="inv-card-name">${it.name}</div>
+          <div class="inv-card-desc">${it.description||''}</div>
+        </div>
+        <div class="inv-card-body">
+          <div class="inv-card-specs">${it.specs||''}</div>
+          <div style="margin-top:6px">${tags.map(t=>`<span class="inv-tag">${t}</span>`).join('')}</div>
+          ${vendors.slice(0,3).map(v=>`<div class="vendor-row">
+            <span class="vendor-star">★</span>
+            <span class="vendor-brand">${v.brand||''}</span>
+            <span class="vendor-model">${v.model||''}</span>
+            <span class="vendor-origin">${v.origin||''}</span>
+            <span class="vendor-price">${v.price||''}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    const tbody=document.getElementById('inv-tbody');
+    if(!items.length){tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Không tìm thấy vật tư nào</td></tr>`;return;}
+    tbody.innerHTML=items.map(it=>{
+      const vendors=it.vendors||[];
+      const top=vendors[0]||{};
+      return `<tr style="cursor:pointer" onclick="showInvDetail('${it.id}')">
+        <td><span style="font-family:var(--mono);font-size:11px;color:var(--accent)">${it.item_code||'—'}</span></td>
+        <td><div style="font-weight:500;font-size:12px">${it.name}</div><div style="font-size:10px;color:var(--text2)">${it.description||''}</div></td>
+        <td><span class="badge badge-info" style="font-size:10px">${it.category||'—'}</span></td>
+        <td style="font-size:11px;color:var(--text2);font-family:var(--mono);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.specs||''}">${it.specs||'—'}</td>
+        <td style="font-size:12px;text-align:center">${it.unit||'—'}</td>
+        <td style="text-align:center"><span class="badge badge-gray">${vendors.length}</span></td>
+        <td>${top.brand?`<div style="font-size:12px;font-weight:500">${top.brand}</div><div style="font-size:10px;color:var(--text2);font-family:var(--mono)">${top.model||''} · ${top.origin||''}</div>`:'—'}</td>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--accent)">${top.price||'—'}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+function setInvView(v) {
+  invView=v;
   const grid=document.getElementById('inv-grid');
-  if(!items.length){grid.innerHTML=empty('🗃️','Không tìm thấy vật tư nào');return;}
-  grid.innerHTML=items.map(it=>{
-    const tags=(()=>{try{return JSON.parse(it.tags||'[]');}catch(e){return[];}})();
-    const vendors=it.vendors||[];
-    return `<div class="inv-card" onclick="showInvDetail('${it.id}')">
-      <div class="inv-card-header">
-        <div class="inv-card-code">${it.item_code||''}</div>
-        <div class="inv-card-name">${it.name}</div>
-        <div class="inv-card-desc">${it.description||''}</div>
-      </div>
-      <div class="inv-card-body">
-        <div class="inv-card-specs">${it.specs||''}</div>
-        <div style="margin-top:6px">${tags.map(t=>`<span class="inv-tag">${t}</span>`).join('')}</div>
-        ${vendors.slice(0,3).map(v=>`<div class="vendor-row">
-          <span class="vendor-star">★</span>
-          <span class="vendor-brand">${v.brand||''}</span>
-          <span class="vendor-model">${v.model||''}</span>
-          <span class="vendor-origin">${v.origin||''}</span>
-          <span class="vendor-price">${v.price||''}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  const wrap=document.getElementById('inv-table-wrap');
+  if(grid) grid.style.display=v==='card'?'':'none';
+  if(wrap) wrap.style.display=v==='table'?'':'none';
+  renderInventory();
 }
 function setCat(cat) {
   document.querySelectorAll('.cat-chip').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));
