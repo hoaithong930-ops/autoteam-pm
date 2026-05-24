@@ -989,10 +989,7 @@ async function saveModal() {
       const newPhase = setActive ? phaseName : p.current_phase;
       await PUT(`/api/projects/${editId}/phase`,{current_phase:newPhase,phase_notes:JSON.stringify(notes)});
       showToast('Đã cập nhật phase');
-    }
-    closeModal();
-    await loadAll();
-  } else if(modalMode==='inv-new-item') {
+    } else if(modalMode==='inv-new-item') {
       if(!g('f-code')||!g('f-name')){alert('Vui lòng nhập Mã và Tên vật tư!');return;}
       const tags = g('f-tags').split(',').map(t=>t.trim()).filter(Boolean);
       const body = {item_code:g('f-code'),name:g('f-name'),category:g('f-cat'),description:g('f-desc'),unit:g('f-unit'),specs:g('f-specs'),tags:JSON.stringify(tags)};
@@ -1000,6 +997,8 @@ async function saveModal() {
       showToast(editId?'Đã cập nhật vật tư':'Đã thêm vật tư mới');
       closeModal(); await loadInventory(); return;
     }
+    closeModal();
+    await loadAll();
   } catch(e) {}
 }
 
@@ -1015,6 +1014,81 @@ function editProject(id){editId=id;showProjectModal(state.projects.find(x=>x.id=
 function editTask(id){editId=id;showTaskModal(state.tasks.find(x=>x.id===id));}
 function editMember(id){editId=id;showMemberModal(state.members.find(x=>x.id===id));}
 function editDoc(id){editId=id;showDocModal(state.docs.find(x=>x.id===id));}
+
+// ── INVENTORY ──
+let invState = { items:[] };
+async function loadInventory() {
+  try {
+    const items = await GET('/api/inventory/items');
+    invState.items = items;
+    document.getElementById('inv-badge').textContent = items.length;
+    if(currentPanel==='inventory') renderInventory();
+  } catch(e) {}
+}
+function renderInventory() {
+  const s=(document.getElementById('inv-search')?.value||'').toLowerCase();
+  const activeCat=document.querySelector('.cat-chip.active')?.dataset.cat||'';
+  let items=invState.items;
+  if(activeCat) items=items.filter(it=>it.category===activeCat);
+  if(s) items=items.filter(it=>(it.name+' '+(it.item_code||'')+' '+(it.specs||'')).toLowerCase().includes(s));
+  const cats=[...new Set(invState.items.map(it=>it.category).filter(Boolean))];
+  document.getElementById('cat-chips').innerHTML=
+    `<div class="cat-chip${!activeCat?' active':''}" data-cat="" onclick="setCat('')">Tất cả (${invState.items.length})</div>`+
+    cats.map(c=>`<div class="cat-chip${activeCat===c?' active':''}" data-cat="${c}" onclick="setCat('${c}')">${c} (${invState.items.filter(x=>x.category===c).length})</div>`).join('');
+  const grid=document.getElementById('inv-grid');
+  if(!items.length){grid.innerHTML=empty('🗃️','Không tìm thấy vật tư nào');return;}
+  grid.innerHTML=items.map(it=>{
+    const tags=(()=>{try{return JSON.parse(it.tags||'[]');}catch(e){return[];}})();
+    const vendors=it.vendors||[];
+    return `<div class="inv-card" onclick="showInvDetail('${it.id}')">
+      <div class="inv-card-header">
+        <div class="inv-card-code">${it.item_code||''}</div>
+        <div class="inv-card-name">${it.name}</div>
+        <div class="inv-card-desc">${it.description||''}</div>
+      </div>
+      <div class="inv-card-body">
+        <div class="inv-card-specs">${it.specs||''}</div>
+        <div style="margin-top:6px">${tags.map(t=>`<span class="inv-tag">${t}</span>`).join('')}</div>
+        ${vendors.slice(0,3).map(v=>`<div class="vendor-row">
+          <span class="vendor-star">★</span>
+          <span class="vendor-brand">${v.brand||''}</span>
+          <span class="vendor-model">${v.model||''}</span>
+          <span class="vendor-origin">${v.origin||''}</span>
+          <span class="vendor-price">${v.price||''}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+function setCat(cat) {
+  document.querySelectorAll('.cat-chip').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));
+  renderInventory();
+}
+function showInvDetail(id) {
+  const it=invState.items.find(x=>x.id===id);
+  if(!it) return;
+  editId=id;
+  showInvItemModal(it);
+}
+function showInvItemModal(it) {
+  modalMode='inv-new-item'; editId=it?it.id:null;
+  document.getElementById('modal-title').textContent=it?'Sửa vật tư':'Thêm vật tư mới';
+  const tags=it?(()=>{try{return JSON.parse(it.tags||'[]');}catch(e){return[];}})().join(', '):'';
+  const cats=['PLC/DCS','HMI/SCADA','Sensor/Transmitter','Control Valve','VFD/Inverter','Power Supply','Cable/Tray','Junction Box','Analyzer','Safety System','Khác'];
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-group"><label class="form-label">Mã vật tư *</label><input class="form-input" id="f-code" value="${it?.item_code||''}"></div>
+    <div class="form-group"><label class="form-label">Tên thiết bị *</label><input class="form-input" id="f-name" value="${it?.name||''}"></div>
+    <div class="form-group"><label class="form-label">Danh mục</label><select class="form-select" id="f-cat">
+      ${cats.map(c=>`<option${it?.category===c?' selected':''}>${c}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label class="form-label">Mô tả</label><textarea class="form-textarea" id="f-desc">${it?.description||''}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group"><label class="form-label">Đơn vị</label><input class="form-input" id="f-unit" value="${it?.unit||'cái'}"></div>
+      <div class="form-group"><label class="form-label">Tags (phân cách bởi dấu phẩy)</label><input class="form-input" id="f-tags" value="${tags}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Thông số kỹ thuật</label><textarea class="form-textarea" id="f-specs">${it?.specs||''}</textarea></div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
 
 checkAPI();
 loadAll();
