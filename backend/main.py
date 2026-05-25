@@ -5,7 +5,52 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import sqlite3, os, uuid, json
-from datetime import date
+from datetime import date, datetime
+
+import hashlib, secrets
+
+# ─── RBAC: ROLES (tài liệu Mục 3.4) ───
+ROLES = {
+    "super_admin":  {"name": "Super Admin",         "level": 100},
+    "admin":        {"name": "Admin",               "level": 90},
+    "manager":      {"name": "Manager",             "level": 80},
+    "pm":           {"name": "Project Manager",     "level": 70},
+    "lead":         {"name": "Lead Engineer",       "level": 60},
+    "engineer":     {"name": "Automation Engineer", "level": 50},
+    "doc_control":  {"name": "Document Controller", "level": 50},
+    "procurement":  {"name": "Procurement",         "level": 50},
+    "viewer":       {"name": "Viewer",              "level": 10},
+}
+
+# ─── RBAC: PERMISSION MATRIX (tài liệu Mục 3.5) ───
+PERMISSION_MATRIX = {
+    "super_admin": {"dashboard":"full","project":"full","task":"full","material":"full","bom":"full","document":"full","report":"full","user_mgmt":"full","inventory":"full"},
+    "admin":       {"dashboard":"full","project":"full","task":"full","material":"full","bom":"full","document":"full","report":"full","user_mgmt":"full","inventory":"full"},
+    "manager":     {"dashboard":"full","project":"full","task":"full","material":"view","bom":"full","document":"full","report":"full","user_mgmt":"view","inventory":"view"},
+    "pm":          {"dashboard":"full","project":"edit","task":"create","material":"view","bom":"edit","document":"edit","report":"edit","user_mgmt":"none","inventory":"view"},
+    "lead":        {"dashboard":"view","project":"edit","task":"create","material":"edit","bom":"edit","document":"edit","report":"view","user_mgmt":"none","inventory":"edit"},
+    "engineer":    {"dashboard":"view","project":"view","task":"edit","material":"view","bom":"edit","document":"edit","report":"view","user_mgmt":"none","inventory":"view"},
+    "doc_control": {"dashboard":"view","project":"view","task":"view","material":"view","bom":"view","document":"full","report":"view","user_mgmt":"none","inventory":"view"},
+    "procurement": {"dashboard":"view","project":"view","task":"view","material":"edit","bom":"edit","document":"view","report":"view","user_mgmt":"none","inventory":"full"},
+    "viewer":      {"dashboard":"view","project":"view","task":"view","material":"view","bom":"view","document":"view","report":"view","user_mgmt":"none","inventory":"view"},
+}
+
+def hash_password(password, salt=None):
+    if salt is None:
+        salt = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000).hex()
+    return salt + "$" + h
+
+def verify_password(password, stored):
+    try:
+        salt, _ = stored.split("$", 1)
+        return hash_password(password, salt) == stored
+    except:
+        return False
+
+def make_token():
+    return secrets.token_urlsafe(32)
+
 
 app = FastAPI(title="AutoTeam PM API", version="2.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -63,6 +108,45 @@ def init_db():
         link TEXT, updated_at TEXT,
         FOREIGN KEY(project_id) REFERENCES projects(id)
     );
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        full_name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        username TEXT UNIQUE,
+        password_hash TEXT NOT NULL,
+        phone TEXT,
+        department TEXT,
+        position TEXT,
+        skills TEXT,
+        role TEXT DEFAULT 'engineer',
+        status TEXT DEFAULT 'pending',
+        avatar_color TEXT,
+        last_login_at TEXT,
+        created_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_at TEXT,
+        expires_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS login_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        email TEXT,
+        ip TEXT,
+        status TEXT,
+        created_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        user_name TEXT,
+        action TEXT,
+        module TEXT,
+        detail TEXT,
+        created_at TEXT
+    );
     CREATE TABLE IF NOT EXISTS inventory_items (
         id TEXT PRIMARY KEY,
         item_code TEXT UNIQUE NOT NULL,
@@ -99,6 +183,21 @@ def init_db():
 
 def seed_db():
     conn = get_db(); c = conn.cursor()
+    # seed default admin user
+    if c.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
+        today_str = str(date.today())
+        admin_pwd = hash_password("admin123")
+        users_seed = [
+            ("u1","Team Leader","admin@autoteam.com","admin",admin_pwd,"0900000000","Management","Team Leader","Oil & Gas,PLC,SCADA","super_admin","active","#00d4aa",None,today_str),
+            ("u2","Tran Van Hung","hung@autoteam.com","hung",hash_password("123456"),"0901111111","Automation","Project Manager","Siemens,PLC,P&ID","pm","active","#0099ff",None,today_str),
+            ("u3","Nguyen Thi Mai","mai@autoteam.com","mai",hash_password("123456"),"0902222222","Automation","Lead Engineer","SCADA,HMI","lead","active","#a855f7",None,today_str),
+            ("u4","Le Minh Tuan","tuan@autoteam.com","tuan",hash_password("123456"),"0903333333","Automation","Automation Engineer","PLC,Safety","engineer","active","#f59e0b",None,today_str),
+            ("u5","Pham Quoc Bao","bao@autoteam.com","bao",hash_password("123456"),"0904444444","Document","Document Controller","MDR,Transmittal","doc_control","active","#22c55e",None,today_str),
+            ("u6","Hoang Thi Lan","lan@autoteam.com","lan",hash_password("123456"),"0905555555","Procurement","Procurement","RFQ,Vendor","procurement","active","#ff6b35",None,today_str),
+        ]
+        c.executemany("INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", users_seed)
+
+
     # seed members/projects if empty
     if c.execute("SELECT COUNT(*) FROM members").fetchone()[0] == 0:
         today_str = str(date.today())
@@ -462,6 +561,217 @@ def get_stats():
 
 @app.get("/api/phases")
 def get_phases(): return PHASES
+
+
+# ═══════════════════════════════════════════════════════════
+# RBAC / AUTHENTICATION ENDPOINTS
+# ═══════════════════════════════════════════════════════════
+from fastapi import Header, Depends
+
+class RegisterIn(BaseModel):
+    full_name: str
+    email: str
+    username: Optional[str] = ""
+    password: str
+    phone: Optional[str] = ""
+    department: Optional[str] = ""
+    position: Optional[str] = ""
+    skills: Optional[str] = ""
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+class UserUpdateIn(BaseModel):
+    full_name: str
+    email: str
+    phone: Optional[str] = ""
+    department: Optional[str] = ""
+    position: Optional[str] = ""
+    skills: Optional[str] = ""
+    role: str
+    status: str
+
+class PasswordChangeIn(BaseModel):
+    old_password: str
+    new_password: str
+
+def get_current_user(authorization: str = Header(None)):
+    """Lấy user hiện tại từ token. Trả None nếu chưa đăng nhập."""
+    if not authorization:
+        return None
+    token = authorization.replace("Bearer ", "").strip()
+    conn = get_db()
+    row = conn.execute(
+        "SELECT u.* FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.token=?",
+        (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def require_auth(authorization: str = Header(None)):
+    user = get_current_user(authorization)
+    if not user:
+        raise HTTPException(401, "Chưa đăng nhập hoặc phiên hết hạn")
+    if user["status"] != "active":
+        raise HTTPException(403, "Tài khoản chưa được kích hoạt")
+    return user
+
+def log_audit(user, action, module, detail=""):
+    try:
+        conn = get_db()
+        conn.execute("INSERT INTO audit_logs VALUES (?,?,?,?,?,?,?)",
+            (str(uuid.uuid4())[:8], user.get("id") if user else None,
+             user.get("full_name") if user else "System",
+             action, module, detail, datetime.now().isoformat()))
+        conn.commit(); conn.close()
+    except: pass
+
+@app.get("/api/auth/roles")
+def get_roles():
+    return {"roles": ROLES, "permissions": PERMISSION_MATRIX}
+
+@app.post("/api/auth/register", status_code=201)
+def register(body: RegisterIn):
+    conn = get_db()
+    exists = conn.execute("SELECT id FROM users WHERE email=?", (body.email,)).fetchone()
+    if exists:
+        conn.close()
+        raise HTTPException(400, "Email đã được đăng ký")
+    uid = str(uuid.uuid4())[:8]
+    colors = ["#00d4aa","#0099ff","#a855f7","#f59e0b","#22c55e","#ff6b35","#06b6d4","#f43f5e"]
+    color = colors[hash(uid) % len(colors)]
+    conn.execute("INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (uid, body.full_name, body.email, body.username or body.email,
+         hash_password(body.password), body.phone, body.department,
+         body.position, body.skills, "engineer", "pending", color, None, str(date.today())))
+    conn.commit(); conn.close()
+    return {"id": uid, "message": "Đăng ký thành công. Chờ Admin duyệt tài khoản."}
+
+@app.post("/api/auth/login")
+def login(body: LoginIn):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE email=? OR username=?",
+                       (body.email, body.email)).fetchone()
+    if not row or not verify_password(body.password, row["password_hash"]):
+        conn.execute("INSERT INTO login_history VALUES (?,?,?,?,?,?)",
+            (str(uuid.uuid4())[:8], None, body.email, "", "failed", datetime.now().isoformat()))
+        conn.commit(); conn.close()
+        raise HTTPException(401, "Email hoặc mật khẩu không đúng")
+    user = dict(row)
+    if user["status"] == "pending":
+        conn.close()
+        raise HTTPException(403, "Tài khoản đang chờ duyệt")
+    if user["status"] in ("suspended", "disabled", "rejected"):
+        conn.close()
+        raise HTTPException(403, "Tài khoản đã bị khóa")
+    token = make_token()
+    conn.execute("INSERT INTO sessions VALUES (?,?,?,?)",
+        (token, user["id"], datetime.now().isoformat(), ""))
+    conn.execute("UPDATE users SET last_login_at=? WHERE id=?",
+        (datetime.now().isoformat(), user["id"]))
+    conn.execute("INSERT INTO login_history VALUES (?,?,?,?,?,?)",
+        (str(uuid.uuid4())[:8], user["id"], user["email"], "", "success", datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {
+        "token": token,
+        "user": {
+            "id": user["id"], "full_name": user["full_name"], "email": user["email"],
+            "role": user["role"], "role_name": ROLES.get(user["role"], {}).get("name", user["role"]),
+            "department": user["department"], "position": user["position"],
+            "avatar_color": user["avatar_color"],
+            "permissions": PERMISSION_MATRIX.get(user["role"], {}),
+        }
+    }
+
+@app.post("/api/auth/logout")
+def logout(authorization: str = Header(None)):
+    if authorization:
+        token = authorization.replace("Bearer ", "").strip()
+        conn = get_db()
+        conn.execute("DELETE FROM sessions WHERE token=?", (token,))
+        conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.get("/api/auth/me")
+def get_me(user: dict = Depends(require_auth)):
+    return {
+        "id": user["id"], "full_name": user["full_name"], "email": user["email"],
+        "role": user["role"], "role_name": ROLES.get(user["role"], {}).get("name", user["role"]),
+        "department": user["department"], "position": user["position"],
+        "avatar_color": user["avatar_color"],
+        "permissions": PERMISSION_MATRIX.get(user["role"], {}),
+    }
+
+@app.post("/api/auth/change-password")
+def change_password(body: PasswordChangeIn, user: dict = Depends(require_auth)):
+    if not verify_password(body.old_password, user["password_hash"]):
+        raise HTTPException(400, "Mật khẩu cũ không đúng")
+    conn = get_db()
+    conn.execute("UPDATE users SET password_hash=? WHERE id=?",
+        (hash_password(body.new_password), user["id"]))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+# ─── USER MANAGEMENT (Admin) ───
+@app.get("/api/users")
+def list_users(user: dict = Depends(require_auth)):
+    conn = get_db()
+    rows = conn.execute("SELECT id,full_name,email,username,phone,department,position,skills,role,status,avatar_color,last_login_at,created_at FROM users ORDER BY created_at DESC").fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["role_name"] = ROLES.get(d["role"], {}).get("name", d["role"])
+        out.append(d)
+    return out
+
+@app.put("/api/users/{uid}")
+def update_user(uid: str, body: UserUpdateIn, user: dict = Depends(require_auth)):
+    if PERMISSION_MATRIX.get(user["role"], {}).get("user_mgmt") != "full":
+        raise HTTPException(403, "Không có quyền quản lý user")
+    conn = get_db()
+    conn.execute("""UPDATE users SET full_name=?,email=?,phone=?,department=?,
+        position=?,skills=?,role=?,status=? WHERE id=?""",
+        (body.full_name, body.email, body.phone, body.department,
+         body.position, body.skills, body.role, body.status, uid))
+    conn.commit(); conn.close()
+    log_audit(user, "update", "user", f"Cập nhật user {uid}")
+    return {"ok": True}
+
+@app.post("/api/users/{uid}/approve")
+def approve_user(uid: str, user: dict = Depends(require_auth)):
+    if PERMISSION_MATRIX.get(user["role"], {}).get("user_mgmt") != "full":
+        raise HTTPException(403, "Không có quyền duyệt user")
+    conn = get_db()
+    conn.execute("UPDATE users SET status='active' WHERE id=?", (uid,))
+    conn.commit(); conn.close()
+    log_audit(user, "approve", "user", f"Duyệt user {uid}")
+    return {"ok": True}
+
+@app.delete("/api/users/{uid}")
+def delete_user(uid: str, user: dict = Depends(require_auth)):
+    if PERMISSION_MATRIX.get(user["role"], {}).get("user_mgmt") != "full":
+        raise HTTPException(403, "Không có quyền xóa user")
+    conn = get_db()
+    conn.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+    conn.execute("DELETE FROM users WHERE id=?", (uid,))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.get("/api/login-history")
+def login_history(user: dict = Depends(require_auth)):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM login_history ORDER BY created_at DESC LIMIT 100").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/audit-logs")
+def audit_logs(user: dict = Depends(require_auth)):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 200").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
 
 if os.path.exists(FRONT_DIR):
     app.mount("/static",StaticFiles(directory=FRONT_DIR,html=True),name="static")
